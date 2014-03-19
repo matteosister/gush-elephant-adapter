@@ -14,6 +14,7 @@ namespace Gush\Adapter;
 use Github\Client;
 use Github\HttpClient\CachedHttpClient;
 use Github\ResultPager;
+use Guzzle\Plugin\Log\LogPlugin;
 use Symfony\Component\Console\Helper\DialogHelper;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -66,6 +67,14 @@ class GitHubAdapter extends BaseAdapter
         ]);
 
         $client = new Client($cachedClient);
+
+        if (false !== getenv('GITHUB_DEBUG')) {
+            $logPlugin = LogPlugin::getDebugPlugin();
+            $httpClient = $client->getHttpClient();
+            $httpClient->addSubscriber($logPlugin);
+        }
+
+        $client->setOption('base_url', $config['base_url']);
         $this->url = rtrim($config['base_url'], '/');
         $this->domain = rtrim($config['repo_domain_url'], '/');
 
