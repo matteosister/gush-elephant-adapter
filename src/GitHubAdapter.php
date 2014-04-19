@@ -14,6 +14,7 @@ namespace Gush\Adapter;
 use Github\Client;
 use Github\HttpClient\CachedHttpClient;
 use Github\ResultPager;
+use Gush\Config;
 use Guzzle\Plugin\Log\LogPlugin;
 use Symfony\Component\Console\Helper\DialogHelper;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -46,12 +47,12 @@ class GitHubAdapter extends BaseAdapter
     protected $authenticationType = Client::AUTH_HTTP_PASSWORD;
 
     /**
-     * Initializes the Adapter
-     *
-     * @return void
+     * {@inheritdoc}
      */
-    protected function initialize()
+    public function __construct(Config $configuration)
     {
+        parent::__construct($configuration);
+
         $this->client = $this->buildGitHubClient();
     }
 
