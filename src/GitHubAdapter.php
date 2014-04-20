@@ -439,7 +439,7 @@ class GitHubAdapter extends BaseAdapter
      * @param  string $state
      * @return mixed
      */
-    public function getPullRequests($state = 'open')
+    public function getPullRequests($state = null)
     {
         $api = $this->client->api('pull_request');
 
@@ -448,6 +448,18 @@ class GitHubAdapter extends BaseAdapter
             $this->getRepository(),
             $state
         );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getPullRequestStates()
+    {
+        return [
+            'open',
+            'closed',
+            'all',
+        ];
     }
 
     /**
