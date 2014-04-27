@@ -443,6 +443,33 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
+     * @param  string $state
+     * @return mixed
+     */
+    public function getPullRequests($state = null)
+    {
+        $api = $this->client->api('pull_request');
+
+        return $api->all(
+            $this->getUsername(),
+            $this->getRepository(),
+            $state
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getPullRequestStates()
+    {
+        return [
+            'open',
+            'closed',
+            'all',
+        ];
+    }
+
+    /**
      * @param string $name
      * @param array  $parameters
      *
