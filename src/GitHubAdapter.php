@@ -81,14 +81,20 @@ class GitHubAdapter extends BaseAdapter
         return $client;
     }
 
+    /**
+     * @param OutputInterface $output
+     * @param DialogHelper    $dialog
+     *
+     * @return array
+     */
     public static function doConfiguration(OutputInterface $output, DialogHelper $dialog)
     {
         $config = [];
 
-        $output->writeln('<comment>Enter your GitHub URL (supports Enterprise): </comment>');
+        $output->writeln('<comment>Enter your GitHub URL: </comment>');
         $config['base_url'] = $dialog->askAndValidate(
             $output,
-            'Api url: ',
+            'Api url [https://api.github.com/]: ',
             function ($url) {
                 return filter_var($url, FILTER_VALIDATE_URL);
             },
@@ -98,7 +104,7 @@ class GitHubAdapter extends BaseAdapter
 
         $config['repo_domain_url'] = $dialog->askAndValidate(
             $output,
-            'Repo domain url: ',
+            'Repo domain url [github.com]: ',
             function ($field) {
                 return $field;
             },
