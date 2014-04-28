@@ -62,10 +62,12 @@ class GitHubAdapter extends BaseAdapter
     protected function buildGitHubClient()
     {
         $config = $this->configuration->get('github');
-        $cachedClient = new CachedHttpClient([
-            'cache_dir' => $this->configuration->get('cache-dir'),
-            'base_url'  => $config['base_url']
-        ]);
+        $cachedClient = new CachedHttpClient(
+            [
+                'cache_dir' => $this->configuration->get('cache-dir'),
+                'base_url'  => $config['base_url'],
+            ]
+        );
 
         $client = new Client($cachedClient);
 
@@ -105,12 +107,12 @@ class GitHubAdapter extends BaseAdapter
 
         $config['repo_domain_url'] = $dialog->askAndValidate(
             $output,
-            'Repo domain url [github.com]: ',
+            'Repo domain url [https://github.com]: ',
             function ($field) {
                 return $field;
             },
             false,
-            'github.com'
+            'https://github.com'
         );
 
         return $config;

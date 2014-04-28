@@ -31,10 +31,12 @@ class GitHubEnterpriseAdapter extends GitHubAdapter
     {
         $config = $this->configuration->get('github_enterprise');
 
-        $cachedClient = new CachedHttpClient([
-            'cache_dir' => $this->configuration->get('cache-dir'),
-            'base_url'  => $config['base_url']
-        ]);
+        $cachedClient = new CachedHttpClient(
+            [
+                'cache_dir' => $this->configuration->get('cache-dir'),
+                'base_url'  => $config['base_url'],
+            ]
+        );
 
         $client = new Client($cachedClient);
 
