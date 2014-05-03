@@ -226,7 +226,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function getIssueUrl($id)
     {
-        return sprintf('https://%s/%s/%s/issues/%d', $this->domain, $this->getUsername(), $this->getRepository(), $id);
+        return sprintf('%s/%s/%s/issues/%d', $this->domain, $this->getUsername(), $this->getRepository(), $id);
     }
 
     /**
