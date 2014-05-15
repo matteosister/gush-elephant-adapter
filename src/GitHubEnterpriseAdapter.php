@@ -22,7 +22,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class GitHubEnterpriseAdapter extends GitHubAdapter
 {
-    const NAME = 'github_enterprise';
+    /**
+     * {@inheritdoc}
+     */
+    public static function getName()
+    {
+        return 'github_enterprise';
+    }
 
     /**
      * @return Client
@@ -54,10 +60,7 @@ class GitHubEnterpriseAdapter extends GitHubAdapter
     }
 
     /**
-     * @param OutputInterface $output
-     * @param DialogHelper    $dialog
-     *
-     * @return array
+     * {@inheritdoc}
      */
     public static function doConfiguration(OutputInterface $output, DialogHelper $dialog)
     {

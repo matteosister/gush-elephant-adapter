@@ -15,17 +15,17 @@ use Github\Client;
 use Github\HttpClient\CachedHttpClient;
 use Github\ResultPager;
 use Gush\Config;
+use Gush\Exception\AdapterException;
 use Guzzle\Plugin\Log\LogPlugin;
 use Symfony\Component\Console\Helper\DialogHelper;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @author  Aaron Scherer
+ * @author Aaron Scherer
+ * @author Sebastiaan Stok <s.stok@rollerscapes.net>
  */
 class GitHubAdapter extends BaseAdapter
 {
-    const NAME = 'github';
-
     /**
      * @var string|null
      */
@@ -57,6 +57,14 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public static function getName()
+    {
+        return 'github';
+    }
+
+    /**
      * @return Client
      */
     protected function buildGitHubClient()
@@ -85,10 +93,7 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * @param OutputInterface $output
-     * @param DialogHelper    $dialog
-     *
-     * @return array
+     * {@inheritdoc}
      */
     public static function doConfiguration(OutputInterface $output, DialogHelper $dialog)
     {
@@ -119,7 +124,7 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * @return Boolean
+     * {@inheritdoc}
      */
     public function authenticate()
     {
@@ -146,9 +151,7 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * Returns true if the adapter is authenticated, false otherwise
-     *
-     * @return Boolean
+     * {@inheritdoc}
      */
     public function isAuthenticated()
     {
@@ -183,16 +186,13 @@ class GitHubAdapter extends BaseAdapter
         );
 
         return [
-            'remote_url' => $result['ssh_url'],
+            'git_url' => $result['ssh_url'],
+            'html_url' => $result['html_url'],
         ];
     }
 
     /**
-     * @param string $subject
-     * @param string $body
-     * @param array  $options
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function openIssue($subject, $body, array $options = [])
     {
@@ -202,23 +202,37 @@ class GitHubAdapter extends BaseAdapter
             $this->getUsername(),
             $this->getRepository(),
             array_merge($options, ['title' => $subject, 'body' => $body])
-        );
+        )['number'];
     }
 
     /**
-     * @param integer $id
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getIssue($id)
     {
         $api = $this->client->api('issue');
 
-        return $api->show(
+        $issue = $api->show(
             $this->getUsername(),
             $this->getRepository(),
             $id
         );
+
+        return [
+            'url'          => $this->getIssueUrl($id),
+            'number'       => $id,
+            'state'        => $issue['state'],
+            'title'        => $issue['title'],
+            'body'         => $issue['body'],
+            'user'         => $issue['user']['login'],
+            'labels'       => $this->getValuesFromNestedArray($issue['labels'], 'name'),
+            'assignee'     => $issue['assignee']['login'],
+            'milestone'    => $issue['milestone']['title'],
+            'created_at'   => !empty($issue['created_at']) ? new \DateTime($issue['created_at']) : null,
+            'updated_at'   => !empty($issue['updated_at']) ? new \DateTime($issue['updated_at']) : null,
+            'closed_by'    => !empty($issue['closed_by']) ? $issue['closed_by']['login'] : null,
+            'pull_request' => isset($issue['pull_request']),
+        ];
     }
 
     /**
@@ -230,14 +244,14 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * @param array $parameters
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
-    public function getIssues(array $parameters = [])
+    public function getIssues(array $parameters = [], $page = 1, $perPage = 30)
     {
+        // FIXME is not respecting the pagination
+
         $pager = new ResultPager($this->client);
-        return $pager->fetchAll(
+        $fetchedIssues = $pager->fetchAll(
             $this->client->api('issue'),
             'all',
             [
@@ -246,19 +260,37 @@ class GitHubAdapter extends BaseAdapter
                 $parameters
             ]
         );
+
+        $issues = [];
+
+        foreach ($fetchedIssues as $issue) {
+            $issues[] = [
+                'url'          => $this->getIssueUrl($issue['number']),
+                'number'       => $issue['number'],
+                'state'        => $issue['state'],
+                'title'        => $issue['title'],
+                'body'         => $issue['body'],
+                'user'         => $issue['user']['login'],
+                'labels'       => $this->getValuesFromNestedArray($issue['labels'], 'name'),
+                'assignee'     => $issue['assignee']['login'],
+                'milestone'    => $issue['milestone']['title'],
+                'created_at'   => !empty($issue['created_at']) ? new \DateTime($issue['created_at']) : null,
+                'updated_at'   => !empty($issue['updated_at']) ? new \DateTime($issue['updated_at']) : null,
+                'closed_by'    => !empty($issue['closed_by']) ? $issue['closed_by']['login'] : null,
+                'pull_request' => isset($issue['pull_request']),
+            ];
+        }
+
     }
 
     /**
-     * @param integer $id
-     * @param array   $parameters
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function updateIssue($id, array $parameters)
     {
         $api = $this->client->api('issue');
 
-        return $api->update(
+        $api->update(
             $this->getUsername(),
             $this->getRepository(),
             $id,
@@ -267,20 +299,15 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * @param integer $id
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function closeIssue($id)
     {
-        return $this->updateIssue($id, ['state' => 'closed']);
+        $this->updateIssue($id, ['state' => 'closed']);
     }
 
     /**
-     * @param integer $id
-     * @param string  $message
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function createComment($id, $message)
     {
@@ -295,19 +322,17 @@ class GitHubAdapter extends BaseAdapter
             $this->getRepository(),
             $id,
             ['body' => $message]
-        );
+        )['html_url'];
     }
 
     /**
-     * @param $id
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getComments($id)
     {
         $pager = new ResultPager($this->client);
 
-        return $pager->fetchAll(
+        $fetchedComments = $pager->fetchAll(
             $this->client->api('issue')->comments(),
             'all',
             [
@@ -316,10 +341,25 @@ class GitHubAdapter extends BaseAdapter
                 $id,
             ]
         );
+
+        $comments = [];
+
+        foreach ($fetchedComments as $comment) {
+            $comments[] = [
+                'id'         => $comment['number'],
+                'url'        => $comment['html_url'],
+                'body'       => $comment['body'],
+                'user'       => $comment['user']['login'],
+                'created_at' => !empty($comment['created_at']) ? new \DateTime($comment['created_at']) : null,
+                'updated_at' => !empty($comment['updated_at']) ? new \DateTime($comment['updated_at']) : null,
+            ];
+        }
+
+        return $comments;
     }
 
     /**
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getLabels()
     {
@@ -329,16 +369,14 @@ class GitHubAdapter extends BaseAdapter
             ->labels()
         ;
 
-        return $api->all(
+        return $this->getValuesFromNestedArray($api->all(
             $this->getUsername(),
             $this->getRepository()
-        );
+        ), 'name');
     }
 
     /**
-     * @param array $parameters
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getMilestones(array $parameters = [])
     {
@@ -348,21 +386,15 @@ class GitHubAdapter extends BaseAdapter
             ->milestones()
         ;
 
-        return $api->all(
+        return $this->getValuesFromNestedArray($api->all(
             $this->getUsername(),
             $this->getRepository(),
             $parameters
-        );
+        ), 'title');
     }
 
     /**
-     * @param string $base
-     * @param string $head
-     * @param string $subject
-     * @param string $body
-     * @param array  $parameters
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function openPullRequest($base, $head, $subject, $body, array $parameters = [])
     {
@@ -384,19 +416,46 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * @param integer $id
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getPullRequest($id)
     {
         $api = $this->client->api('pull_request');
 
-        return $api->show(
+        $pr = $api->show(
             $this->getUsername(),
             $this->getRepository(),
             $id
         );
+
+        return [
+            'url'          => $pr['html_url'],
+            'number'       => $pr['number'],
+            'state'        => $pr['state'],
+            'title'        => $pr['title'],
+            'body'         => $pr['body'],
+            'labels'       => [],
+            'milestone'    => null,
+            'created_at' => !empty($pr['created_at']) ? new \DateTime($pr['created_at']) : null,
+            'updated_at' => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
+            'user'         => $pr['user']['login'],
+            'assignee'     => null,
+            'merge_commit' => null, // empty as GitHub doesn't provide this yet, merge_commit_sha is deprecated and not meant for this
+            'merged'       => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
+            'merged_by'    => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
+            'head' => [
+                'ref' =>  $pr['head']['ref'],
+                'sha'  => $pr['head']['sha'],
+                'user' => $pr['head']['user']['login'],
+                'repo' => $pr['head']['repo']['name'],
+            ],
+            'base' => [
+              'ref'   => $pr['base']['ref'],
+              'label' => $pr['base']['label'],
+              'sha'   => $pr['base']['sha'],
+              'repo'  => $pr['base']['repo']['name'],
+            ],
+        ];
     }
 
     /**
@@ -408,26 +467,33 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * @param int $id
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getPullRequestCommits($id)
     {
         $api = $this->client->api('pull_request');
 
-        return $api->commits(
+        $fetchedCommits = $api->commits(
             $this->getUsername(),
             $this->getRepository(),
             $id
         );
+
+        $commits = [];
+
+        foreach ($fetchedCommits as $commit) {
+            $commits[] = [
+                'sha'     => $commit['sha'],
+                'user'    => $commit['author']['login'],
+                'message' => $commit['commit']['message'],
+            ];
+        }
+
+        return $commits;
     }
 
     /**
-     * @param $id
-     * @param $message
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function mergePullRequest($id, $message)
     {
@@ -436,31 +502,73 @@ class GitHubAdapter extends BaseAdapter
             ->api('pull_request')
         ;
 
-        return $api->merge(
+        $result = $api->merge(
             $this->getUsername(),
             $this->getRepository(),
             $id,
             $message
         );
+
+        if (false === $result['merged']) {
+            throw new AdapterException('Merge failed: '.$result['message']);
+        }
+
+        return $result['sha'];
     }
 
     /**
-     * @param  string $state
-     * @return mixed
+     * {@inheritdoc}
      */
-    public function getPullRequests($state = null)
+    public function getPullRequests($state = null, $page = 1, $perPage = 30)
     {
+        // FIXME is not respecting the pagination
+
         $api = $this->client->api('pull_request');
 
-        return $api->all(
+        $fetchedPrs = $api->all(
             $this->getUsername(),
             $this->getRepository(),
             $state
         );
+
+        $prs = [];
+
+        foreach ($fetchedPrs as $pr) {
+            $prs[] = [
+                'url'          => $pr['html_url'],
+                'number'       => $pr['number'],
+                'state'        => $pr['state'],
+                'title'        => $pr['title'],
+                'body'         => $pr['body'],
+                'labels'       => [],
+                'milestone'    => null,
+                'created_at'   => !empty($pr['created_at']) ? new \DateTime($pr['created_at']) : null,
+                'updated_at'   => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
+                'user'         => $pr['user']['login'],
+                'assignee'     => null,
+                'merge_commit' => null, // empty as GitHub doesn't provide this yet, merge_commit_sha is deprecated and not meant for this
+                'merged'       => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
+                'merged_by'    => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
+                'head' => [
+                    'ref' =>  $pr['head']['ref'],
+                    'sha'  => $pr['head']['sha'],
+                    'user' => $pr['head']['user']['login'],
+                    'repo' => $pr['head']['repo']['name'],
+                ],
+                'base' => [
+                  'ref'   => $pr['base']['ref'],
+                  'label' => $pr['base']['label'],
+                  'sha'   => $pr['base']['sha'],
+                  'repo'  => $pr['base']['repo']['name'],
+                ],
+            ];
+        }
+
+        return $prs;
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function getPullRequestStates()
     {
@@ -472,10 +580,7 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * @param string $name
-     * @param array  $parameters
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function createRelease($name, array $parameters = [])
     {
@@ -485,7 +590,7 @@ class GitHubAdapter extends BaseAdapter
             ->releases()
         ;
 
-        return $api->create(
+        $release = $api->create(
             $this->getUsername(),
             $this->getRepository(),
             array_merge(
@@ -495,10 +600,12 @@ class GitHubAdapter extends BaseAdapter
                 ]
             )
         );
+
+        return ['url' => $release['html_url'], 'id' => $release['id']];
     }
 
     /**
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getReleases()
     {
@@ -508,23 +615,42 @@ class GitHubAdapter extends BaseAdapter
             ->releases()
         ;
 
-        return $api->all(
+        $fetchedReleases = $api->all(
             $this->getUsername(),
             $this->getRepository()
         );
+
+        $releases = [];
+
+        foreach ($fetchedReleases as $release) {
+            $releases[] = [
+                'url'           => $release['html_url'],
+                'id'            => $release['id'],
+                'name'          => $release['name'],
+                'tag_name'      => $release['tag_name'],
+                'body'          => $release['body'],
+                'draft'         => $release['draft'],
+                'prerelease'    => $release['prerelease'],
+                'created_at'    => !empty($comment['created_at']) ? new \DateTime($comment['created_at']) : null,
+                'updated_at'    => !empty($comment['updated_at']) ? new \DateTime($comment['updated_at']) : null,
+                'published_at'  => !empty($comment['published_at']) ? new \DateTime($comment['published_at']) : null,
+                'user'          => $release['user']['login'],
+            ];
+        }
+
+        return $releases;
     }
 
     /**
-     * @param $id
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function removeRelease($id)
     {
         $api =
             $this->client->api('repo')
                 ->releases();
-        return $api->remove(
+
+        $api->remove(
             $this->getUsername(),
             $this->getRepository(),
             $id
@@ -532,12 +658,7 @@ class GitHubAdapter extends BaseAdapter
     }
 
     /**
-     * @param integer $id
-     * @param string  $name
-     * @param string  $contentType
-     * @param string  $content
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function createReleaseAssets($id, $name, $contentType, $content)
     {
@@ -553,6 +674,6 @@ class GitHubAdapter extends BaseAdapter
             $name,
             $contentType,
             $content
-        );
+        )['id'];
     }
 }
