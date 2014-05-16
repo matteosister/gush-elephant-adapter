@@ -198,11 +198,13 @@ class GitHubAdapter extends BaseAdapter
     {
         $api = $this->client->api('issue');
 
-        return $api->create(
+        $issue = $api->create(
             $this->getUsername(),
             $this->getRepository(),
             array_merge($options, ['title' => $subject, 'body' => $body])
-        )['number'];
+        );
+
+        return $issue['number'];
     }
 
     /**
@@ -212,27 +214,13 @@ class GitHubAdapter extends BaseAdapter
     {
         $api = $this->client->api('issue');
 
-        $issue = $api->show(
-            $this->getUsername(),
-            $this->getRepository(),
-            $id
+        return $this->adaptIssueStructure(
+            $api->show(
+                $this->getUsername(),
+                $this->getRepository(),
+                $id
+            )
         );
-
-        return [
-            'url'          => $this->getIssueUrl($id),
-            'number'       => $id,
-            'state'        => $issue['state'],
-            'title'        => $issue['title'],
-            'body'         => $issue['body'],
-            'user'         => $issue['user']['login'],
-            'labels'       => $this->getValuesFromNestedArray($issue['labels'], 'name'),
-            'assignee'     => $issue['assignee']['login'],
-            'milestone'    => $issue['milestone']['title'],
-            'created_at'   => !empty($issue['created_at']) ? new \DateTime($issue['created_at']) : null,
-            'updated_at'   => !empty($issue['updated_at']) ? new \DateTime($issue['updated_at']) : null,
-            'closed_by'    => !empty($issue['closed_by']) ? $issue['closed_by']['login'] : null,
-            'pull_request' => isset($issue['pull_request']),
-        ];
     }
 
     /**
@@ -264,23 +252,10 @@ class GitHubAdapter extends BaseAdapter
         $issues = [];
 
         foreach ($fetchedIssues as $issue) {
-            $issues[] = [
-                'url'          => $this->getIssueUrl($issue['number']),
-                'number'       => $issue['number'],
-                'state'        => $issue['state'],
-                'title'        => $issue['title'],
-                'body'         => $issue['body'],
-                'user'         => $issue['user']['login'],
-                'labels'       => $this->getValuesFromNestedArray($issue['labels'], 'name'),
-                'assignee'     => $issue['assignee']['login'],
-                'milestone'    => $issue['milestone']['title'],
-                'created_at'   => !empty($issue['created_at']) ? new \DateTime($issue['created_at']) : null,
-                'updated_at'   => !empty($issue['updated_at']) ? new \DateTime($issue['updated_at']) : null,
-                'closed_by'    => !empty($issue['closed_by']) ? $issue['closed_by']['login'] : null,
-                'pull_request' => isset($issue['pull_request']),
-            ];
+            $issues[] = $this->adaptIssueStructure($issue);
         }
 
+        return $issues;
     }
 
     /**
@@ -317,12 +292,14 @@ class GitHubAdapter extends BaseAdapter
             ->comments()
         ;
 
-        return $api->create(
+        $comment = $api->create(
             $this->getUsername(),
             $this->getRepository(),
             $id,
             ['body' => $message]
-        )['html_url'];
+        );
+
+        return $comment['html_url'];
     }
 
     /**
@@ -369,10 +346,13 @@ class GitHubAdapter extends BaseAdapter
             ->labels()
         ;
 
-        return $this->getValuesFromNestedArray($api->all(
-            $this->getUsername(),
-            $this->getRepository()
-        ), 'name');
+        return $this->getValuesFromNestedArray(
+            $api->all(
+                $this->getUsername(),
+                $this->getRepository()
+            ),
+            'name'
+        );
     }
 
     /**
@@ -386,11 +366,14 @@ class GitHubAdapter extends BaseAdapter
             ->milestones()
         ;
 
-        return $this->getValuesFromNestedArray($api->all(
-            $this->getUsername(),
-            $this->getRepository(),
-            $parameters
-        ), 'title');
+        return $this->getValuesFromNestedArray(
+            $api->all(
+                $this->getUsername(),
+                $this->getRepository(),
+                $parameters
+            ),
+            'title'
+        );
     }
 
     /**
@@ -422,40 +405,13 @@ class GitHubAdapter extends BaseAdapter
     {
         $api = $this->client->api('pull_request');
 
-        $pr = $api->show(
-            $this->getUsername(),
-            $this->getRepository(),
-            $id
+        return $this->adaptPullRequestStructure(
+            $api->show(
+                $this->getUsername(),
+                $this->getRepository(),
+                $id
+            )
         );
-
-        return [
-            'url'          => $pr['html_url'],
-            'number'       => $pr['number'],
-            'state'        => $pr['state'],
-            'title'        => $pr['title'],
-            'body'         => $pr['body'],
-            'labels'       => [],
-            'milestone'    => null,
-            'created_at' => !empty($pr['created_at']) ? new \DateTime($pr['created_at']) : null,
-            'updated_at' => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
-            'user'         => $pr['user']['login'],
-            'assignee'     => null,
-            'merge_commit' => null, // empty as GitHub doesn't provide this yet, merge_commit_sha is deprecated and not meant for this
-            'merged'       => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
-            'merged_by'    => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
-            'head' => [
-                'ref' =>  $pr['head']['ref'],
-                'sha'  => $pr['head']['sha'],
-                'user' => $pr['head']['user']['login'],
-                'repo' => $pr['head']['repo']['name'],
-            ],
-            'base' => [
-              'ref'   => $pr['base']['ref'],
-              'label' => $pr['base']['label'],
-              'sha'   => $pr['base']['sha'],
-              'repo'  => $pr['base']['repo']['name'],
-            ],
-        ];
     }
 
     /**
@@ -534,34 +490,7 @@ class GitHubAdapter extends BaseAdapter
         $prs = [];
 
         foreach ($fetchedPrs as $pr) {
-            $prs[] = [
-                'url'          => $pr['html_url'],
-                'number'       => $pr['number'],
-                'state'        => $pr['state'],
-                'title'        => $pr['title'],
-                'body'         => $pr['body'],
-                'labels'       => [],
-                'milestone'    => null,
-                'created_at'   => !empty($pr['created_at']) ? new \DateTime($pr['created_at']) : null,
-                'updated_at'   => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
-                'user'         => $pr['user']['login'],
-                'assignee'     => null,
-                'merge_commit' => null, // empty as GitHub doesn't provide this yet, merge_commit_sha is deprecated and not meant for this
-                'merged'       => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
-                'merged_by'    => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
-                'head' => [
-                    'ref' =>  $pr['head']['ref'],
-                    'sha'  => $pr['head']['sha'],
-                    'user' => $pr['head']['user']['login'],
-                    'repo' => $pr['head']['repo']['name'],
-                ],
-                'base' => [
-                  'ref'   => $pr['base']['ref'],
-                  'label' => $pr['base']['label'],
-                  'sha'   => $pr['base']['sha'],
-                  'repo'  => $pr['base']['repo']['name'],
-                ],
-            ];
+            $prs[] = $this->adaptPullRequestStructure($pr);
         }
 
         return $prs;
@@ -601,7 +530,10 @@ class GitHubAdapter extends BaseAdapter
             )
         );
 
-        return ['url' => $release['html_url'], 'id' => $release['id']];
+        return [
+            'url' => $release['html_url'],
+            'id' => $release['id']
+        ];
     }
 
     /**
@@ -631,9 +563,9 @@ class GitHubAdapter extends BaseAdapter
                 'body'          => $release['body'],
                 'draft'         => $release['draft'],
                 'prerelease'    => $release['prerelease'],
-                'created_at'    => !empty($comment['created_at']) ? new \DateTime($comment['created_at']) : null,
-                'updated_at'    => !empty($comment['updated_at']) ? new \DateTime($comment['updated_at']) : null,
-                'published_at'  => !empty($comment['published_at']) ? new \DateTime($comment['published_at']) : null,
+                'created_at'    => new \DateTime($release['created_at']),
+                'updated_at'    => !empty($release['updated_at']) ? new \DateTime($release['updated_at']) : null,
+                'published_at'  => !empty($release['published_at']) ? new \DateTime($release['published_at']) : null,
                 'user'          => $release['user']['login'],
             ];
         }
@@ -667,13 +599,66 @@ class GitHubAdapter extends BaseAdapter
                 ->releases()
                 ->assets();
 
-        return $api->create(
+        $asset = $api->create(
             $this->getUsername(),
             $this->getRepository(),
             $id,
             $name,
             $contentType,
             $content
-        )['id'];
+        );
+
+        return $asset['id'];
+    }
+
+    protected function adaptIssueStructure(array $issue)
+    {
+        return [
+            'url'          => $issue['html_url'],
+            'number'       => $issue['number'],
+            'state'        => $issue['state'],
+            'title'        => $issue['title'],
+            'body'         => $issue['body'],
+            'user'         => $issue['user']['login'],
+            'labels'       => $this->getValuesFromNestedArray($issue['labels'], 'name'),
+            'assignee'     => $issue['assignee']['login'],
+            'milestone'    => $issue['milestone']['title'],
+            'created_at'   => new \DateTime($issue['created_at']),
+            'updated_at'   => !empty($issue['updated_at']) ? new \DateTime($issue['updated_at']) : null,
+            'closed_by'    => !empty($issue['closed_by']) ? $issue['closed_by']['login'] : null,
+            'pull_request' => isset($issue['pull_request']),
+        ];
+    }
+
+    protected function adaptPullRequestStructure(array $pr)
+    {
+        return [
+            'url'          => $pr['html_url'],
+            'number'       => $pr['number'],
+            'state'        => $pr['state'],
+            'title'        => $pr['title'],
+            'body'         => $pr['body'],
+            'labels'       => [],
+            'milestone'    => null,
+            'created_at'   => new \DateTime($pr['created_at']),
+            'updated_at'   => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
+            'user'         => $pr['user']['login'],
+            'assignee'     => null,
+            'merge_commit' => null, // empty as GitHub doesn't provide this yet, merge_commit_sha is deprecated and not meant for this
+            'merged'       => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
+            'merged_by'    => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
+            'head' => [
+                'ref' =>  $pr['head']['ref'],
+                'sha'  => $pr['head']['sha'],
+                'user' => $pr['head']['user']['login'],
+                'repo' => $pr['head']['repo']['name'],
+            ],
+            'base' => [
+              'ref'   => $pr['base']['ref'],
+              'label' => $pr['base']['label'],
+              'sha'   => $pr['base']['sha'],
+              'repo'  => $pr['base']['repo']['name'],
+            ],
+        ];
     }
 }
