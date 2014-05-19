@@ -21,7 +21,7 @@ use Symfony\Component\Console\Helper\DialogHelper;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @author Aaron Scherer
+ * @author Aaron Scherer <aequasi@gmail.com>
  * @author Sebastiaan Stok <s.stok@rollerscapes.net>
  */
 class GitHubAdapter extends BaseAdapter
@@ -73,7 +73,7 @@ class GitHubAdapter extends BaseAdapter
         $cachedClient = new CachedHttpClient(
             [
                 'cache_dir' => $this->configuration->get('cache-dir'),
-                'base_url'  => $config['base_url'],
+                'base_url' => $config['base_url'],
             ]
         );
 
@@ -286,11 +286,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function createComment($id, $message)
     {
-        $api = $this
-            ->client
-            ->api('issue')
-            ->comments()
-        ;
+        $api = $this->client->api('issue')->comments();
 
         $comment = $api->create(
             $this->getUsername(),
@@ -323,10 +319,10 @@ class GitHubAdapter extends BaseAdapter
 
         foreach ($fetchedComments as $comment) {
             $comments[] = [
-                'id'         => $comment['number'],
-                'url'        => $comment['html_url'],
-                'body'       => $comment['body'],
-                'user'       => $comment['user']['login'],
+                'id' => $comment['number'],
+                'url' => $comment['html_url'],
+                'body' => $comment['body'],
+                'user' => $comment['user']['login'],
                 'created_at' => !empty($comment['created_at']) ? new \DateTime($comment['created_at']) : null,
                 'updated_at' => !empty($comment['updated_at']) ? new \DateTime($comment['updated_at']) : null,
             ];
@@ -340,11 +336,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function getLabels()
     {
-        $api = $this
-            ->client
-            ->api('issue')
-            ->labels()
-        ;
+        $api = $this->client->api('issue')->labels();
 
         return $this->getValuesFromNestedArray(
             $api->all(
@@ -360,11 +352,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function getMilestones(array $parameters = [])
     {
-        $api = $this
-            ->client
-            ->api('issue')
-            ->milestones()
-        ;
+        $api = $this->client->api('issue')->milestones();
 
         return $this->getValuesFromNestedArray(
             $api->all(
@@ -389,10 +377,10 @@ class GitHubAdapter extends BaseAdapter
             array_merge(
                 $parameters,
                 [
-                    'base'  => $base,
-                    'head'  => $head,
+                    'base' => $base,
+                    'head' => $head,
                     'title' => $subject,
-                    'body'  => $body,
+                    'body' => $body,
                 ]
             )
         );
@@ -439,8 +427,8 @@ class GitHubAdapter extends BaseAdapter
 
         foreach ($fetchedCommits as $commit) {
             $commits[] = [
-                'sha'     => $commit['sha'],
-                'user'    => $commit['author']['login'],
+                'sha' => $commit['sha'],
+                'user' => $commit['author']['login'],
                 'message' => $commit['commit']['message'],
             ];
         }
@@ -453,10 +441,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function mergePullRequest($id, $message)
     {
-        $api = $this
-            ->client
-            ->api('pull_request')
-        ;
+        $api = $this->client->api('pull_request');
 
         $result = $api->merge(
             $this->getUsername(),
@@ -513,11 +498,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function createRelease($name, array $parameters = [])
     {
-        $api = $this
-            ->client
-            ->api('repo')
-            ->releases()
-        ;
+        $api = $this->client->api('repo')->releases();
 
         $release = $api->create(
             $this->getUsername(),
@@ -532,7 +513,7 @@ class GitHubAdapter extends BaseAdapter
 
         return [
             'url' => $release['html_url'],
-            'id' => $release['id']
+            'id' => $release['id'],
         ];
     }
 
@@ -541,11 +522,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function getReleases()
     {
-        $api = $this
-            ->client
-            ->api('repo')
-            ->releases()
-        ;
+        $api = $this->client->api('repo')->releases();
 
         $fetchedReleases = $api->all(
             $this->getUsername(),
@@ -556,17 +533,17 @@ class GitHubAdapter extends BaseAdapter
 
         foreach ($fetchedReleases as $release) {
             $releases[] = [
-                'url'           => $release['html_url'],
-                'id'            => $release['id'],
-                'name'          => $release['name'],
-                'tag_name'      => $release['tag_name'],
-                'body'          => $release['body'],
-                'draft'         => $release['draft'],
-                'prerelease'    => $release['prerelease'],
-                'created_at'    => new \DateTime($release['created_at']),
-                'updated_at'    => !empty($release['updated_at']) ? new \DateTime($release['updated_at']) : null,
-                'published_at'  => !empty($release['published_at']) ? new \DateTime($release['published_at']) : null,
-                'user'          => $release['user']['login'],
+                'url' => $release['html_url'],
+                'id' => $release['id'],
+                'name' => $release['name'],
+                'tag_name' => $release['tag_name'],
+                'body' => $release['body'],
+                'draft' => $release['draft'],
+                'prerelease' => $release['prerelease'],
+                'created_at' => new \DateTime($release['created_at']),
+                'updated_at' => !empty($release['updated_at']) ? new \DateTime($release['updated_at']) : null,
+                'published_at' => !empty($release['published_at']) ? new \DateTime($release['published_at']) : null,
+                'user' => $release['user']['login'],
             ];
         }
 
@@ -578,9 +555,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function removeRelease($id)
     {
-        $api =
-            $this->client->api('repo')
-                ->releases();
+        $api = $this->client->api('repo')->releases();
 
         $api->remove(
             $this->getUsername(),
@@ -594,10 +569,7 @@ class GitHubAdapter extends BaseAdapter
      */
     public function createReleaseAssets($id, $name, $contentType, $content)
     {
-        $api =
-            $this->client->api('repo')
-                ->releases()
-                ->assets();
+        $api = $this->client->api('repo')->releases()->assets();
 
         $asset = $api->create(
             $this->getUsername(),
@@ -614,18 +586,18 @@ class GitHubAdapter extends BaseAdapter
     protected function adaptIssueStructure(array $issue)
     {
         return [
-            'url'          => $issue['html_url'],
-            'number'       => $issue['number'],
-            'state'        => $issue['state'],
-            'title'        => $issue['title'],
-            'body'         => $issue['body'],
-            'user'         => $issue['user']['login'],
-            'labels'       => $this->getValuesFromNestedArray($issue['labels'], 'name'),
-            'assignee'     => $issue['assignee']['login'],
-            'milestone'    => $issue['milestone']['title'],
-            'created_at'   => new \DateTime($issue['created_at']),
-            'updated_at'   => !empty($issue['updated_at']) ? new \DateTime($issue['updated_at']) : null,
-            'closed_by'    => !empty($issue['closed_by']) ? $issue['closed_by']['login'] : null,
+            'url' => $issue['html_url'],
+            'number' => $issue['number'],
+            'state' => $issue['state'],
+            'title' => $issue['title'],
+            'body' => $issue['body'],
+            'user' => $issue['user']['login'],
+            'labels' => $this->getValuesFromNestedArray($issue['labels'], 'name'),
+            'assignee' => $issue['assignee']['login'],
+            'milestone' => $issue['milestone']['title'],
+            'created_at' => new \DateTime($issue['created_at']),
+            'updated_at' => !empty($issue['updated_at']) ? new \DateTime($issue['updated_at']) : null,
+            'closed_by' => !empty($issue['closed_by']) ? $issue['closed_by']['login'] : null,
             'pull_request' => isset($issue['pull_request']),
         ];
     }
@@ -633,31 +605,31 @@ class GitHubAdapter extends BaseAdapter
     protected function adaptPullRequestStructure(array $pr)
     {
         return [
-            'url'          => $pr['html_url'],
-            'number'       => $pr['number'],
-            'state'        => $pr['state'],
-            'title'        => $pr['title'],
-            'body'         => $pr['body'],
-            'labels'       => [],
-            'milestone'    => null,
-            'created_at'   => new \DateTime($pr['created_at']),
-            'updated_at'   => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
-            'user'         => $pr['user']['login'],
-            'assignee'     => null,
+            'url' => $pr['html_url'],
+            'number' => $pr['number'],
+            'state' => $pr['state'],
+            'title' => $pr['title'],
+            'body' => $pr['body'],
+            'labels' => [],
+            'milestone' => null,
+            'created_at' => new \DateTime($pr['created_at']),
+            'updated_at' => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
+            'user' => $pr['user']['login'],
+            'assignee' => null,
             'merge_commit' => null, // empty as GitHub doesn't provide this yet, merge_commit_sha is deprecated and not meant for this
-            'merged'       => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
-            'merged_by'    => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
+            'merged' => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
+            'merged_by' => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
             'head' => [
-                'ref' =>  $pr['head']['ref'],
-                'sha'  => $pr['head']['sha'],
+                'ref' => $pr['head']['ref'],
+                'sha' => $pr['head']['sha'],
                 'user' => $pr['head']['user']['login'],
                 'repo' => $pr['head']['repo']['name'],
             ],
             'base' => [
-              'ref'   => $pr['base']['ref'],
+              'ref' => $pr['base']['ref'],
               'label' => $pr['base']['label'],
-              'sha'   => $pr['base']['sha'],
-              'repo'  => $pr['base']['repo']['name'],
+              'sha' => $pr['base']['sha'],
+              'repo' => $pr['base']['repo']['name'],
             ],
         ];
     }
