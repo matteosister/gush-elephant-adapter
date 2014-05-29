@@ -437,7 +437,7 @@ class GitHubAdapter extends BaseAdapter implements IssueTracker
      */
     public function closePullRequest($id)
     {
-        $this->closePullRequest($id);
+        $this->closeIssue($id);
     }
 
     /**
