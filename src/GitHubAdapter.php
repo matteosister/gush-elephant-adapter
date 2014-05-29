@@ -429,7 +429,14 @@ class GitHubAdapter extends BaseAdapter implements IssueTracker
      */
     public function updatePullRequest($id, array $parameters)
     {
-        $this->updateIssue($id, $parameters);
+        $api = $this->client->api('pull_request');
+
+        $api->update(
+            $this->getUsername(),
+            $this->getRepository(),
+            $id,
+            $parameters
+        );
     }
 
     /**
@@ -437,7 +444,7 @@ class GitHubAdapter extends BaseAdapter implements IssueTracker
      */
     public function closePullRequest($id)
     {
-        $this->closeIssue($id);
+        $this->updatePullRequest($id, ['state' => 'closed']);
     }
 
     /**
@@ -587,20 +594,18 @@ class GitHubAdapter extends BaseAdapter implements IssueTracker
 
     protected function adaptPullRequestStructure(array $pr)
     {
-        $issueData = $this->getIssue($pr['number']);
-
         return [
             'url' => $pr['html_url'],
             'number' => $pr['number'],
             'state' => $pr['state'],
             'title' => $pr['title'],
             'body' => $pr['body'],
-            'labels' => $issueData['labels'],
-            'milestone' => $issueData['milestone'],
+            'labels' => [],
+            'milestone' => null,
             'created_at' => new \DateTime($pr['created_at']),
             'updated_at' => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
             'user' => $pr['user']['login'],
-            'assignee' => $issueData['assignee'],
+            'assignee' => null,
             'merge_commit' => null, // empty as GitHub doesn't provide this yet, merge_commit_sha is deprecated and not meant for this
             'merged' => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
             'merged_by' => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
