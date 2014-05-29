@@ -16,15 +16,14 @@ use Github\HttpClient\CachedHttpClient;
 use Github\ResultPager;
 use Gush\Config;
 use Gush\Exception\AdapterException;
+use Gush\Util\ArrayUtil;
 use Guzzle\Plugin\Log\LogPlugin;
-use Symfony\Component\Console\Helper\DialogHelper;
-use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @author Aaron Scherer <aequasi@gmail.com>
  * @author Sebastiaan Stok <s.stok@rollerscapes.net>
  */
-class GitHubAdapter extends BaseAdapter
+class GitHubAdapter extends BaseAdapter implements IssueTracker
 {
     /**
      * @var string|null
@@ -37,9 +36,9 @@ class GitHubAdapter extends BaseAdapter
     protected $domain;
 
     /**
-     * @var Client|null
+     * @var Client
      */
-    private $client;
+    protected $client;
 
     /**
      * @var string
@@ -47,21 +46,24 @@ class GitHubAdapter extends BaseAdapter
     protected $authenticationType = Client::AUTH_HTTP_PASSWORD;
 
     /**
-     * {@inheritdoc}
+     * @var array
      */
-    public function __construct(Config $configuration)
-    {
-        parent::__construct($configuration);
-
-        $this->client = $this->buildGitHubClient();
-    }
+    protected $config;
 
     /**
-     * {@inheritdoc}
+     * @var \Gush\Config
      */
-    public static function getName()
+    protected $globalConfig;
+
+    /**
+     * @param array  $config
+     * @param Config $globalConfig
+     */
+    public function __construct(array $config, Config $globalConfig)
     {
-        return 'github';
+        $this->config = $config;
+        $this->globalConfig = $globalConfig;
+        $this->client = $this->buildGitHubClient();
     }
 
     /**
@@ -69,11 +71,10 @@ class GitHubAdapter extends BaseAdapter
      */
     protected function buildGitHubClient()
     {
-        $config = $this->configuration->get('github');
         $cachedClient = new CachedHttpClient(
             [
-                'cache_dir' => $this->configuration->get('cache-dir'),
-                'base_url' => $config['base_url'],
+                'cache_dir' => $this->globalConfig->get('cache-dir'),
+                'base_url' => $this->config['base_url'],
             ]
         );
 
@@ -85,9 +86,9 @@ class GitHubAdapter extends BaseAdapter
             $httpClient->addSubscriber($logPlugin);
         }
 
-        $client->setOption('base_url', $config['base_url']);
-        $this->url = rtrim($config['base_url'], '/');
-        $this->domain = rtrim($config['repo_domain_url'], '/');
+        $client->setOption('base_url', $this->config['base_url']);
+        $this->url = rtrim($this->config['base_url'], '/');
+        $this->domain = rtrim($this->config['repo_domain_url'], '/');
 
         return $client;
     }
@@ -95,40 +96,9 @@ class GitHubAdapter extends BaseAdapter
     /**
      * {@inheritdoc}
      */
-    public static function doConfiguration(OutputInterface $output, DialogHelper $dialog)
-    {
-        $config = [];
-
-        $output->writeln('<comment>Enter your GitHub URL: </comment>');
-        $config['base_url'] = $dialog->askAndValidate(
-            $output,
-            'Api url [https://api.github.com/]: ',
-            function ($url) {
-                return filter_var($url, FILTER_VALIDATE_URL);
-            },
-            false,
-            'https://api.github.com/'
-        );
-
-        $config['repo_domain_url'] = $dialog->askAndValidate(
-            $output,
-            'Repo domain url [https://github.com]: ',
-            function ($field) {
-                return $field;
-            },
-            false,
-            'https://github.com'
-        );
-
-        return $config;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function authenticate()
     {
-        $credentials = $this->configuration->get('authentication');
+        $credentials = $this->config['authentication'];
 
         if (Client::AUTH_HTTP_PASSWORD === $credentials['http-auth-type']) {
             $this->client->authenticate(
@@ -136,18 +106,14 @@ class GitHubAdapter extends BaseAdapter
                 $credentials['password-or-token'],
                 $credentials['http-auth-type']
             );
-
-            return;
+        } else {
+            $this->client->authenticate(
+                $credentials['password-or-token'],
+                $credentials['http-auth-type']
+            );
         }
 
-        $this->client->authenticate(
-            $credentials['password-or-token'],
-            $credentials['http-auth-type']
-        );
-
-        $this->authenticationType = Client::AUTH_HTTP_TOKEN;
-
-        return;
+        $this->authenticationType = $credentials['http-auth-type'];
     }
 
     /**
@@ -338,7 +304,7 @@ class GitHubAdapter extends BaseAdapter
     {
         $api = $this->client->api('issue')->labels();
 
-        return $this->getValuesFromNestedArray(
+        return ArrayUtil::getValuesFromNestedArray(
             $api->all(
                 $this->getUsername(),
                 $this->getRepository()
@@ -354,7 +320,7 @@ class GitHubAdapter extends BaseAdapter
     {
         $api = $this->client->api('issue')->milestones();
 
-        return $this->getValuesFromNestedArray(
+        return ArrayUtil::getValuesFromNestedArray(
             $api->all(
                 $this->getUsername(),
                 $this->getRepository(),
@@ -455,6 +421,23 @@ class GitHubAdapter extends BaseAdapter
         }
 
         return $result['sha'];
+    }
+
+
+    /**
+     * {@inheritdoc}
+     */
+    public function updatePullRequest($id, array $parameters)
+    {
+        $this->updateIssue($id, $parameters);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function closePullRequest($id)
+    {
+        $this->closePullRequest($id);
     }
 
     /**
@@ -592,7 +575,7 @@ class GitHubAdapter extends BaseAdapter
             'title' => $issue['title'],
             'body' => $issue['body'],
             'user' => $issue['user']['login'],
-            'labels' => $this->getValuesFromNestedArray($issue['labels'], 'name'),
+            'labels' => ArrayUtil::getValuesFromNestedArray($issue['labels'], 'name'),
             'assignee' => $issue['assignee']['login'],
             'milestone' => $issue['milestone']['title'],
             'created_at' => new \DateTime($issue['created_at']),
@@ -604,18 +587,20 @@ class GitHubAdapter extends BaseAdapter
 
     protected function adaptPullRequestStructure(array $pr)
     {
+        $issueData = $this->getIssue($pr['number']);
+
         return [
             'url' => $pr['html_url'],
             'number' => $pr['number'],
             'state' => $pr['state'],
             'title' => $pr['title'],
             'body' => $pr['body'],
-            'labels' => [],
-            'milestone' => null,
+            'labels' => $issueData['labels'],
+            'milestone' => $issueData['milestone'],
             'created_at' => new \DateTime($pr['created_at']),
             'updated_at' => !empty($pr['updated_at']) ? new \DateTime($pr['updated_at']) : null,
             'user' => $pr['user']['login'],
-            'assignee' => null,
+            'assignee' => $issueData['assignee'],
             'merge_commit' => null, // empty as GitHub doesn't provide this yet, merge_commit_sha is deprecated and not meant for this
             'merged' => isset($pr['merged_by']) && isset($pr['merged_by']['login']),
             'merged_by' => isset($pr['merged_by']) && isset($pr['merged_by']['login']) ? $pr['merged_by']['login'] : '',
