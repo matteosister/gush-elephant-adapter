@@ -10,6 +10,10 @@
         {
             "name": "Luis Cordova",
             "email": "cordoval@gmail.com"
+        },
+        {
+            "name": "Sebastiaan Stok",
+            "email": "s.stok@rollercapes.net"
         }
     ],
     "autoload": {
