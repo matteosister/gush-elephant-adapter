@@ -67,6 +67,14 @@ class GitHubAdapter extends BaseAdapter implements IssueTracker
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function supportsRepository($remoteUrl)
+    {
+        return false !== stripos($remoteUrl, 'github.com');
+    }
+
+    /**
      * @return Client
      */
     protected function buildGitHubClient()

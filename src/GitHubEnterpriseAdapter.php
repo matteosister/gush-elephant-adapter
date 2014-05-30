@@ -22,5 +22,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class GitHubEnterpriseAdapter extends GitHubAdapter
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function supportsRepository($remoteUrl)
+    {
+        // always returns false as its not save to determine this (yet)
+        return false;
+    }
 }
 
