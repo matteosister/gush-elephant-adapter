@@ -293,7 +293,7 @@ class GitHubAdapter extends BaseAdapter implements IssueTracker
 
         foreach ($fetchedComments as $comment) {
             $comments[] = [
-                'id' => $comment['number'],
+                'id' => $comment['id'],
                 'url' => $comment['html_url'],
                 'body' => $comment['body'],
                 'user' => $comment['user']['login'],
