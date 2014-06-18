@@ -11,12 +11,6 @@
 
 namespace Gush\Adapter;
 
-use Github\Client;
-use Github\HttpClient\CachedHttpClient;
-use Guzzle\Plugin\Log\LogPlugin;
-use Symfony\Component\Console\Helper\DialogHelper;
-use Symfony\Component\Console\Output\OutputInterface;
-
 /**
  * @author Pierre du Plessis <pdples@gmail.com>
  */
