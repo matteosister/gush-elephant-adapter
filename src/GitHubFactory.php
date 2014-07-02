@@ -27,7 +27,7 @@ class GitHubFactory
     public static function createAdapterConfigurator(HelperSet $helperSet)
     {
         $configurator = new DefaultConfigurator(
-            $helperSet->get('dialog'),
+            $helperSet->get('question'),
             'GitHub',
             'https://api.github.com/',
             'https://github.com'
@@ -44,7 +44,7 @@ class GitHubFactory
     public static function createIssueTrackerConfigurator(HelperSet $helperSet)
     {
         $configurator = new DefaultConfigurator(
-            $helperSet->get('dialog'),
+            $helperSet->get('question'),
             'GitHub issue tracker',
             'https://api.github.com/',
             'https://github.com'
