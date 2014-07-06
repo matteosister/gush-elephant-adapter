@@ -541,7 +541,7 @@ class GitHubAdapter extends BaseAdapter implements IssueTracker
                 'created_at' => new \DateTime($release['created_at']),
                 'updated_at' => !empty($release['updated_at']) ? new \DateTime($release['updated_at']) : null,
                 'published_at' => !empty($release['published_at']) ? new \DateTime($release['published_at']) : null,
-                'user' => $release['user']['login'],
+                'user' => $release['author']['login'],
             ];
         }
 
