@@ -156,7 +156,7 @@ class GitHubAdapter extends BaseAdapter implements IssueTracker
         $result = $api->forks()->create(
             $this->getUsername(),
             $this->getRepository(),
-            ['org' => $org]
+            $org ? ['organization' => $org]: []
         );
 
         return [
