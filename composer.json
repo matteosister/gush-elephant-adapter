@@ -1,19 +1,11 @@
 {
-    "name": "gushphp/gush-github-adapter",
-    "description": "GitHub adapter for Gush",
+    "name": "gushphp/gush-elephant-adapter",
+    "description": "GitElephant adapter for Gush",
     "license": "MIT",
     "authors": [
         {
-            "name": "Aaron Scherer",
-            "email": "aequasi@gmail.com"
-        },
-        {
-            "name": "Luis Cordova",
-            "email": "cordoval@gmail.com"
-        },
-        {
-            "name": "Sebastiaan Stok",
-            "email": "s.stok@rollercapes.net"
+            "name": "Matteo Giachino",
+            "email": "matteog@gmail.com"
         }
     ],
     "autoload": {
