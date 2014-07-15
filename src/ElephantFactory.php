@@ -17,20 +17,20 @@ use Symfony\Component\Console\Helper\HelperSet;
 /**
  * @author Sebastiaan Stok <s.stok@rollerscapes.net>
  */
-class GitHubFactory
+class ElephantFactory
 {
     public static function createAdapter($adapterConfig, Config $config)
     {
-        return new GitHubAdapter($adapterConfig, $config);
+        return new ElephantAdapter($adapterConfig, $config);
     }
 
     public static function createAdapterConfigurator(HelperSet $helperSet)
     {
-        $configurator = new GitHubConfigurator(
+        $configurator = new ElephantConfigurator(
             $helperSet->get('question'),
-            'GitHub',
-            'https://api.github.com/',
-            'https://github.com'
+            'Elephant',
+            '',
+            ''
         );
 
         return $configurator;
@@ -38,16 +38,16 @@ class GitHubFactory
 
     public static function createIssueTracker($adapterConfig, Config $config)
     {
-        return new GitHubAdapter($adapterConfig, $config);
+        return new ElephantAdapter($adapterConfig, $config);
     }
 
     public static function createIssueTrackerConfigurator(HelperSet $helperSet)
     {
-        $configurator = new GitHubConfigurator(
+        $configurator = new ElephantConfigurator(
             $helperSet->get('question'),
-            'GitHub issue tracker',
-            'https://api.github.com/',
-            'https://github.com'
+            'Elephant issue tracker',
+            '',
+            ''
         );
 
         return $configurator;

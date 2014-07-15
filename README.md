@@ -1,11 +1,10 @@
-gush-github-adapter
+gush-elephant-adapter
 ===================
 
-GitHub adapter for Gush
-
+[GitElephant](https://github.com/matteosister/GitElephant) adapter for Gush
 
 ## To Use
 
 ```sh
-gush configure --adapter=github
+gush configure --adapter=elephant
 ```
